@@ -40,13 +40,13 @@ class AlienInvasion:
         self._create_fleet()
         # Создание кнопки Play.
         self.play_button = Button(self, "Play")
-        
+
 
     def run_game(self):
         """Запуск основного цикла игры!"""
         while True:
             self._chek_events()
-            if self.stats.game_active:
+            if self.stats.game_active and not self.settings.on_pause:
                 self.ship.update()
                 self._update_bullets()
                 self._update_aliens()
@@ -64,7 +64,7 @@ class AlienInvasion:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
                 self._check_play_button(mouse_pos)
-    
+
     def _check_play_button(self, mouse_pos):
         """Запускает новую игру при нажатии на кнопку Play."""
         button_clicked = self.play_button.rect.collidepoint(mouse_pos)
@@ -73,12 +73,14 @@ class AlienInvasion:
             self.settings.initialize_dynamic_settings()
             # Запускает игру заново.
             self.start_game()
-    
+
     def start_game(self):
         # Сброс игровой статистики.
             self.stats.reset_stats()
             self.stats.game_active = True
             self.sb.prep_score()
+            self.sb.prep_level()
+            self.sb.prep_ship()
             self.settings.initialize_dynamic_settings()
             # Очистка списков пришельцов и снарядов.
             self.aliens.empty()
@@ -99,6 +101,11 @@ class AlienInvasion:
             self._fire_bullet()
         elif event.key == pygame.K_p:
             self.start_game()
+        elif event.key == pygame.K_s or event.key == pygame.K_ESCAPE:
+            if self.settings.on_pause == False:
+                self.settings.on_pause = True
+            elif self.settings.on_pause == True:
+                self.settings.on_pause = False
         elif event.key == pygame.K_q:
             sys.exit()
 
@@ -195,11 +202,15 @@ class AlienInvasion:
             for aliens in collisions.values():
                 self.stats.score += self.settings.alien_points * len(aliens)
             self.sb.prep_score()
+            self.sb.check_high_score()
         if not self.aliens:
             # Уничтожение существующих снарядов, повышение скорости и создание нового флота.
             self.bullets.empty()
             self._create_fleet()
             self.settings.increase_speed()
+            # Увеличение уровня.
+            self.stats.level += 1
+            self.sb.prep_level()
 
     def _update_aliens(self):
         """Проверяет достиг ли флот края экрана и затем
@@ -223,8 +234,9 @@ class AlienInvasion:
     def _ship_hit(self):
         """Обрабатывает столкновения корабля с пришельцами."""
         if self.stats.ships_left > 0:
-            # Уменьшаем количество оставшихся кораблей.
+            # Уменьшаем количество оставшихся кораблей и обновляет панель счета.
             self.stats.ships_left -= 1
+            self.sb.prep_ship()
             # Очистка списков пришельцев и снарядов.
             self.aliens.empty()
             self.bullets.empty()
